@@ -1,0 +1,109 @@
+import Foundation
+import IOKit
+
+// Подсветка клавиатуры через приватный CoreBrightness. Основа — Lowlight (Isaac Harper, MIT).
+final class Backlight {
+    static let floorBrightness: Float = 0.001
+    static let slowestFadeMs = 65_535
+
+    private typealias GetF = @convention(c) (AnyObject, Selector, UInt64) -> Float
+    private typealias GetD = @convention(c) (AnyObject, Selector, UInt64) -> Double
+    private typealias SetFade = @convention(c) (AnyObject, Selector, Float, Int32, Bool, UInt64) -> Bool
+    private typealias GetB = @convention(c) (AnyObject, Selector, UInt64) -> Bool
+    private typealias SetB = @convention(c) (AnyObject, Selector, Bool, UInt64) -> Bool
+
+    private let client: NSObject
+    private let keyboard: UInt64
+    private let getBrightness: GetF
+    private let setFade: SetFade
+    private let getIdleDimTime: GetD
+    private let pwm: io_service_t
+    private let rootDomain: io_service_t
+    private(set) var lastTarget: Float = 0
+
+    private let selBrightness = NSSelectorFromString("brightnessForKeyboard:")
+    private let selFade = NSSelectorFromString("setBrightness:fadeSpeed:commit:forKeyboard:")
+    private let selIdleDimTime = NSSelectorFromString("idleDimTimeForKeyboard:")
+    private let selAutoEnabled = NSSelectorFromString("isAutoBrightnessEnabledForKeyboard:")
+    private let selEnableAuto = NSSelectorFromString("enableAutoBrightness:forKeyboard:")
+
+    init?() {
+        guard dlopen("/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness", RTLD_NOW) != nil,
+              let cls = NSClassFromString("KeyboardBrightnessClient") as? NSObject.Type else { return nil }
+        let client = cls.init()
+        guard client.responds(to: NSSelectorFromString("copyKeyboardBacklightIDs")),
+              let ids = client.perform(NSSelectorFromString("copyKeyboardBacklightIDs"))?
+                .takeRetainedValue() as? [NSNumber],
+              let first = ids.first,
+              client.responds(to: selBrightness), client.responds(to: selFade),
+              client.responds(to: selIdleDimTime) else { return nil }
+        let pwm = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceNameMatching("kbd-backlight"))
+        guard pwm != 0 else { return nil }
+
+        self.client = client
+        self.keyboard = first.uint64Value
+        self.getBrightness = unsafeBitCast(client.method(for: selBrightness), to: GetF.self)
+        self.setFade = unsafeBitCast(client.method(for: selFade), to: SetFade.self)
+        self.getIdleDimTime = unsafeBitCast(client.method(for: selIdleDimTime), to: GetD.self)
+        self.pwm = pwm
+        self.rootDomain = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceNameMatching("IOPMrootDomain"))
+        self.lastTarget = brightness
+    }
+
+    deinit {
+        IOObjectRelease(pwm)
+        IOObjectRelease(rootDomain)
+    }
+
+    var brightness: Float { getBrightness(client, selBrightness, keyboard) }
+
+    // Переход к цели, к которой уже идет переход, игнорируется, поэтому сначала тормозим.
+    func fade(to value: Float, ms: Int, commit: Bool) {
+        if value == lastTarget {
+            let away: Float = value == 0 ? Backlight.floorBrightness : 0
+            _ = setFade(client, selFade, away, Int32(Backlight.slowestFadeMs), false, keyboard)
+        }
+        _ = setFade(client, selFade, value, Int32(clamping: ms), commit, keyboard)
+        lastTarget = value
+    }
+
+    func set(_ value: Float) { fade(to: value, ms: 0, commit: true) }
+
+    var duty: Int? {
+        guard (property("enabled") as? Bool) == true,
+              let high = (property("high-period") as? NSNumber)?.intValue else { return nil }
+        return high
+    }
+
+    // Система гасит подсветку по простою и на это время игнорирует команды.
+    var isIdleDimmed: Bool {
+        let hid = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOHIDSystem"))
+        defer { IOObjectRelease(hid) }
+        guard hid != 0,
+              let ns = IORegistryEntryCreateCFProperty(hid, "HIDIdleTime" as CFString, kCFAllocatorDefault, 0)?
+                .takeRetainedValue() as? NSNumber else { return false }
+        let dimAfter = getIdleDimTime(client, selIdleDimTime, keyboard)
+        return dimAfter > 0 && ns.doubleValue / 1e9 >= dimAfter - 1
+    }
+
+    var isLidClosed: Bool {
+        rootDomain != 0 && (IORegistryEntryCreateCFProperty(rootDomain, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? Bool) == true
+    }
+
+    // Подстройка по освещению выглядит как ручная правка и сбивает удержание, на это время она на паузе.
+    var isAutoBrightnessEnabled: Bool {
+        get {
+            guard client.responds(to: selAutoEnabled) else { return false }
+            return unsafeBitCast(client.method(for: selAutoEnabled), to: GetB.self)(client, selAutoEnabled, keyboard)
+        }
+        set {
+            guard client.responds(to: selEnableAuto) else { return }
+            _ = unsafeBitCast(client.method(for: selEnableAuto), to: SetB.self)(client, selEnableAuto, newValue, keyboard)
+        }
+    }
+
+    private func property(_ key: String) -> Any? {
+        IORegistryEntryCreateCFProperty(pwm, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+    }
+}
