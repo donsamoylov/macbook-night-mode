@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/donsamoylov/macbook-night-mode/releases/latest/download/NightMode.zip"><img src="https://img.shields.io/github/v/release/donsamoylov/macbook-night-mode?label=Download%20for%20Mac&style=for-the-badge&labelColor=5856d6&color=6f6ee8" alt="Download Night Mode for Mac"></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/macOS-tested%20on%2027-141b2e" alt="Tested on macOS 27">
   <img src="https://img.shields.io/badge/Apple%20Silicon-MacBook-141b2e" alt="For Apple Silicon MacBooks">
   <img src="https://img.shields.io/badge/license-MIT-141b2e" alt="MIT license">
@@ -36,7 +40,21 @@ At night the lowest brightness on a MacBook is still too bright. One more press 
 
 ## Install
 
-Night Mode is built from source for now, there is no downloadable app yet. You need an Apple Silicon MacBook and the Xcode Command Line Tools (not full Xcode):
+You need a MacBook with Apple Silicon.
+
+1. [Download NightMode.zip](https://github.com/donsamoylov/macbook-night-mode/releases/latest/download/NightMode.zip) and unzip it.
+2. Move **Night Mode** to your Applications folder.
+3. Open it. The first time, macOS says it can't verify the developer, because Night Mode isn't notarized by Apple. Click **Done**, open **System Settings ▸ Privacy & Security**, scroll down and click **Open Anyway**. Or run once:
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/Night Mode.app"
+   ```
+4. Look for the moon in the menu bar. If the menu bar is full, it can hide behind the notch.
+
+From then on it starts at login and comes back after a crash. macOS may show a notice about a new background item. To stop it starting at login, turn it off in **System Settings ▸ General ▸ Login Items**.
+
+### Build from source
+
+You need the Xcode Command Line Tools (not full Xcode):
 
 ```bash
 xcode-select --install
@@ -50,7 +68,7 @@ git clone https://github.com/donsamoylov/macbook-night-mode.git
 cd macbook-night-mode && ./build.sh --install
 ```
 
-This puts the app in `~/Applications/Night Mode.app` and adds a LaunchAgent, so it starts at login and comes back after a crash. No admin password is needed.
+This puts the app in `~/Applications/Night Mode.app` and starts it. No admin password is needed.
 
 ## How to use
 
@@ -58,7 +76,7 @@ This puts the app in `~/Applications/Night Mode.app` and adds a LaunchAgent, so 
 2. Press the big button.
 3. Drag the sliders. The right edge is the plain system minimum, further left is darker.
 
-The interface is in Russian for now: Ночной режим = Night Mode, Включен / Выключен = On / Off, Экран = Screen, Клавиатура = Keyboard, Выйти = Quit. Quitting keeps the app closed until your next login.
+**Quit** keeps the app closed until your next login.
 
 Set the levels in the room where you will use them. Both sliders start at −30%. The screen slider lowers the signal, not the light directly, so −50% is only about a fifth of the light at the minimum (an estimate for gamma 2.2), and that looks black in a lit room.
 
@@ -106,7 +124,7 @@ It is about 700 lines of Swift with no dependencies.
 
 ## Uninstall
 
-Turn the mode off and press Выйти in the panel, then:
+Turn the mode off and press **Quit** in the panel, then run these two commands. The first one may report an error if you haven't logged in again since installing, and that's fine.
 
 ```bash
 launchctl bootout gui/$UID/io.github.donsamoylov.nightmode
@@ -116,9 +134,7 @@ launchctl bootout gui/$UID/io.github.donsamoylov.nightmode
 rm ~/Library/LaunchAgents/io.github.donsamoylov.nightmode.plist
 ```
 
-```bash
-rm -rf ~/Applications/"Night Mode.app"
-```
+Then move **Night Mode** to the Trash.
 
 ## Credits
 
@@ -146,4 +162,10 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Night Mode is an independe
 - **Всегда под рукой:** запускается при входе в систему, живет в верхнем меню, значка в Dock нет.
 - **Без сети:** ни учетной записи, ни аналитики.
 
-Установка: сборка из исходников, команды в разделе [Install](#install). Нужны Mac на Apple Silicon и Command Line Tools. Проверено на MacBook Pro с M5 Pro и macOS 27, на других моделях не проверялось. Приложение использует закрытые API macOS, поэтому обновление системы может его сломать.
+**Установка.** [Скачайте NightMode.zip](https://github.com/donsamoylov/macbook-night-mode/releases/latest/download/NightMode.zip), распакуйте, перенесите приложение в папку «Программы» и откройте. Приложение не заверено у Apple, поэтому при первом запуске macOS скажет, что не может проверить разработчика. Откройте **Системные настройки ▸ Конфиденциальность и безопасность**, прокрутите вниз и нажмите **Все равно открыть**. Или выполните один раз:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Night Mode.app"
+```
+
+Интерфейс на английском. Нужен MacBook на Apple Silicon. Проверено на MacBook Pro с M5 Pro и macOS 27, на других моделях не проверялось. Приложение использует закрытые API macOS, поэтому обновление системы может его сломать.

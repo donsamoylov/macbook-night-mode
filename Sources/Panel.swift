@@ -31,13 +31,13 @@ struct PanelContent: View {
         VStack(spacing: 16) {
             PowerButton(isOn: isOn, action: toggle)
             VStack(spacing: 14) {
-                LevelSlider(title: "Экран", value: $screenDim, range: NightMode.screenRange)
-                LevelSlider(title: "Клавиатура", value: $keyboardDim, range: NightMode.keyboardRange)
+                LevelSlider(title: "Screen", value: $screenDim, range: NightMode.screenRange)
+                LevelSlider(title: "Keyboard", value: $keyboardDim, range: NightMode.keyboardRange)
             }
             .opacity(isOn ? 1 : 0.65)
             HStack {
                 Spacer()
-                Button("Выйти") { NSApp.terminate(nil) }
+                Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -63,9 +63,9 @@ private struct PowerButton: View {
                 Image(nsImage: moon(filled: isOn, size: 30))
                     .renderingMode(.template)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Ночной режим")
+                    Text("Night Mode")
                         .font(.system(size: 15, weight: .semibold))
-                    Text(isOn ? "Включен" : "Выключен")
+                    Text(isOn ? "On" : "Off")
                         .font(.system(size: 13))
                         .opacity(0.8)
                 }
@@ -81,8 +81,8 @@ private struct PowerButton: View {
         .buttonStyle(PressStyle())
         .onHover { isHovered = $0 }
         .animation(.easeOut(duration: 0.18), value: isOn)
-        .accessibilityLabel("Ночной режим")
-        .accessibilityValue(isOn ? "Включен" : "Выключен")
+        .accessibilityLabel("Night Mode")
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 }
 
@@ -127,7 +127,7 @@ private struct LevelSlider: View {
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text(value < 0.005 ? "минимум" : "−\(Int((value * 100).rounded()))%")
+                Text(value < 0.005 ? "minimum" : "−\(Int((value * 100).rounded()))%")
                     .font(.system(size: 13).monospacedDigit())
                     .foregroundStyle(.secondary)
             }

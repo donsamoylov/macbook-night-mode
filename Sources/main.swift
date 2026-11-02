@@ -14,8 +14,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var outsideClickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Второй экземпляр спорил бы с первым за экран.
+        let same = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+        if same.contains(where: { $0.processIdentifier != getpid() }) {
+            NSApp.terminate(nil)
+            return
+        }
         guard let screen = Screen() else {
-            NSLog("DisplayServices недоступен")
+            NSLog("DisplayServices is unavailable")
             NSApp.terminate(nil)
             return
         }
@@ -35,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateIcon()
 
         installKeyTap()
+        LoginItem.install()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -90,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateIcon() {
         statusItem.button?.image = moon(filled: night.isOn)
-        statusItem.button?.toolTip = night.isOn ? "Ночной режим включен" : "Ночной режим выключен"
+        statusItem.button?.toolTip = night.isOn ? "Night Mode is on" : "Night Mode is off"
         statusItem.button?.setAccessibilityLabel(statusItem.button?.toolTip)
     }
 }

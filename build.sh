@@ -2,6 +2,7 @@
 # Сборка Night Mode. Нужны только Command Line Tools.
 #   ./build.sh            — собрать build/Night Mode.app
 #   ./build.sh --install  — поставить в ~/Applications и в автозапуск (LaunchAgent, после падения поднимается сам)
+#   ./build.sh --zip      — упаковать build/NightMode.zip для релиза
 set -euo pipefail
 cd "${0:A:h}"
 APP="build/Night Mode.app"
@@ -13,6 +14,11 @@ swiftc -O -target arm64-apple-macos14 -framework AppKit -framework IOKit -framew
 cp Info.plist "$APP/Contents/Info.plist"
 codesign --force --timestamp=none --sign - "$APP"
 codesign --verify --strict "$APP"
+
+if [[ ${1:-} == --zip ]]; then
+  ditto -c -k --keepParent "$APP" build/NightMode.zip
+  echo "Архив: build/NightMode.zip"
+fi
 
 if [[ ${1:-} == --install ]]; then
   launchctl bootout gui/$UID/$LABEL 2>/dev/null || true
